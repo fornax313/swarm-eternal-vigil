@@ -1,0 +1,33 @@
+name: Eternal Vigil
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+permissions:
+  contents: write
+concurrency:
+  group: eternal-vigil
+  cancel-in-progress: false
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run scan
+        env:
+          WATCH_WALLETS: ${{ vars.WATCH_WALLETS }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+      - run: |
+          git config user.name 'Eternal Vigil'
+          git config user.email 'vigil@users.noreply.github.com'
+          git add docs/state.json
+          git diff --cached --quiet || git commit -m 'Update paper portfolio'
+          git push
