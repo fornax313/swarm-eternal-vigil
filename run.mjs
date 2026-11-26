@@ -1,8 +1,11 @@
 import {JSDOM} from 'jsdom';
 import fs from 'node:fs';
+import {collect} from './pump-live.mjs';
+const live=await collect();
+console.log('PumpPortal',live.opened,live.reason,'events',live.events.length);
 const path='docs/state.json';
 const prior=fs.existsSync(path)?JSON.parse(fs.readFileSync(path,'utf8')):null;
-const dom=new JSDOM(fs.readFileSync('engine.html','utf8'),{url:'https://swarm.invalid',runScripts:'dangerously',beforeParse(w){w.fetch=globalThis.fetch;w.AbortController=globalThis.AbortController;if(prior)w.localStorage.setItem('swarm-v1',JSON.stringify(prior.state));}});
+const dom=new JSDOM(fs.readFileSync('engine.html','utf8'),{url:'https://swarm.invalid',runScripts:'dangerously',beforeParse(w){w.pumpLive=live;w.fetch=globalThis.fetch;w.AbortController=globalThis.AbortController;if(prior)w.localStorage.setItem('swarm-v1',JSON.stringify(prior.state));}});
 const w=dom.window,d=w.document;
 const old=prior?.state?.log?.[0];
 try{
@@ -10,7 +13,7 @@ try{
  if(process.env.WATCH_WALLETS){d.getElementById('wallets').value=process.env.WATCH_WALLETS;await w.cloudWallets();}
  const state=JSON.parse(JSON.stringify(w.cloudState()));
  const fields={};for(const id of ['equity','stats','status','health','diagnostics','performance','history','positions','candidates','decisions','walletResults','log','chart'])fields[id]=d.getElementById(id).innerHTML;
- const snapshot={state,fields,updated:new Date().toISOString(),analysis:prior?.analysis||'',analysisAt:prior?.analysisAt||null};
+ const snapshot={state,fields,live,updated:new Date().toISOString(),analysis:prior?.analysis||'',analysisAt:prior?.analysisAt||null};
  const status=d.getElementById('status').textContent;
  const events=[];for(const line of state.log){if(line===old)break;if(/\b(BUY|SELL|Risk halt)\b/.test(line))events.push(line);}
  async function post(url,body,headers={}){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error('HTTP '+r.status);return r.json();}
